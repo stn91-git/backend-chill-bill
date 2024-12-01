@@ -1,14 +1,16 @@
-import express from "express";
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Load environment variables first
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+// Then import firebase config which uses these env vars
+import './config/firebase';
+import express from 'express';
 import cors from "cors";
-import dotenv from "dotenv";
 import authRoutes from "./routes/auth";
 import roomRoutes from "./routes/rooms";
 import receiptRoutes from "./routes/receipts";
-import './config/firebase';
-import path from 'path';
-
-// Load environment variables from .env file
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
 const port = process.env.PORT || 3001;
