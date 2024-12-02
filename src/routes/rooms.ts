@@ -6,6 +6,7 @@ import multer from 'multer';
 import path from 'path';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import { GoogleAIFileManager } from "@google/generative-ai/server";
+import { CLIENT_URL, GEMINI_API_KEY } from '../config/constants';
 
 const router: Router = express.Router();
 
@@ -62,7 +63,7 @@ router.post('/create', async (req, res) => {
           name: creatorData?.name,
           upiId: creatorData?.upiId
         },
-        joinLink: `${process.env.CLIENT_URL || 'http://localhost:3000'}/rooms/join/${roomRef.id}`
+        joinLink: `${CLIENT_URL}/rooms/join/${roomRef.id}`
       }
     });
   } catch (error) {
@@ -217,7 +218,7 @@ router.post('/:roomId/upload-receipt', upload.single('receipt'), async (req, res
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const apiKey = "AIzaSyBuaRPl9QtBKDVsyaW9TxOHh1UD8wFqHUs";
+    const apiKey = GEMINI_API_KEY;
     const genAI = new GoogleGenerativeAI(apiKey);
     const fileManager = new GoogleAIFileManager(apiKey);
 
