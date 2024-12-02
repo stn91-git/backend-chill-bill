@@ -73,7 +73,7 @@ router.post('/create', async (req, res) => {
 });
 
 // POST /api/rooms/join/:roomId
-router.post('/join/:roomId', async (req, res) => {
+router.post('/:roomId/join', async (req, res) => {
   try {
     const { roomId } = req.params;
     const { name, upiId } = req.body;
