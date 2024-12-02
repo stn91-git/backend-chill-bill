@@ -77,6 +77,11 @@ router.post('/join/:roomId', async (req, res) => {
     const { roomId } = req.params;
     const { name, upiId } = req.body;
 
+    // Validate input
+    if (!name || !upiId) {
+      return res.status(400).json({ message: "Name and UPI ID are required" });
+    }
+
     // Check if room exists
     const roomRef = db.collection('rooms').doc(roomId);
     const roomDoc = await roomRef.get();
@@ -86,8 +91,18 @@ router.post('/join/:roomId', async (req, res) => {
     }
 
     const roomData = roomDoc.data();
+    
+    // Check if room is active
     if (!roomData?.isActive) {
       return res.status(400).json({ message: "This room is no longer active" });
+    }
+
+    // Check if user with same name already exists in room
+    const existingParticipant = roomData.participants.find(
+      (p: any) => p.name.toLowerCase() === name.toLowerCase()
+    );
+    if (existingParticipant) {
+      return res.status(400).json({ message: "A user with this name already exists in the room" });
     }
 
     // Create user
@@ -146,23 +161,44 @@ router.post('/join/:roomId', async (req, res) => {
 router.get('/:roomId', async (req, res) => {
   try {
     const { roomId } = req.params;
-    const roomDoc = await db.collection('rooms').doc(roomId).get();
+    
+    if (!roomId) {
+      return res.status(400).json({ message: 'Room ID is required' });
+    }
+
+    const roomRef = db.collection('rooms').doc(roomId);
+    const roomDoc = await roomRef.get();
 
     if (!roomDoc.exists) {
       return res.status(404).json({ message: 'Room not found' });
     }
 
     const roomData = roomDoc.data();
+    const creatorDoc = await db.collection('users').doc(roomData?.creator).get();
+    const creatorData = creatorDoc.data();
+
+    // Format participants data
+    const participants = await Promise.all((roomData?.participants || []).map(async (p: any) => {
+      return {
+        userId: p.userId,
+        name: p.name,
+        upiId: p.upiId,
+        joinedAt: p.joinedAt.toDate().toISOString()
+      };
+    }));
+
+    // Format the response
     const room = {
       id: roomDoc.id,
-      ...roomData,
-      // Convert Firestore Timestamp to ISO string for proper JSON serialization
-      createdAt: roomData?.createdAt?.toDate().toISOString(),
-      updatedAt: roomData?.updatedAt?.toDate().toISOString(),
-      participants: roomData?.participants.map((p: any) => ({
-        ...p,
-        joinedAt: p.joinedAt?.toDate().toISOString()
-      }))
+      name: roomData?.name,
+      creator: {
+        id: roomData?.creator,
+        name: creatorData?.name,
+        upiId: creatorData?.upiId
+      },
+      isActive: roomData?.isActive || false,
+      participants: participants,
+      receipt: roomData?.receipt || null
     };
 
     res.json({ room });
