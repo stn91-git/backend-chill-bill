@@ -8,3 +8,4 @@ coverage
 .idea
 .vscode
 firebase-admin.json
+uploads/
