@@ -1,4 +1,4 @@
-import puppeteer from 'puppeteer';
+import puppeteer, { Page } from 'puppeteer';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -35,10 +35,10 @@ export async function openInstagram() {
     console.log('Successfully navigated to reels section');
 
     // Function to wait for proper reel URL
-    async function waitForReelUrl(page: puppeteer.Page): Promise<string> {
+    async function waitForReelUrl(page: Page): Promise<string> {
       let currentUrl = '';
       while (currentUrl.includes('accounts/onetap') || !currentUrl.includes('/reels/')) {
-        currentUrl = await page.url();
+        currentUrl =  page.url();
         await new Promise(r => setTimeout(r, 1000));
       }
       return currentUrl;
@@ -61,7 +61,7 @@ export async function openInstagram() {
 
         // Move to next reel
         await page.keyboard.press('ArrowDown');
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 4000));
 
       } catch (error) {
         console.error('Error getting reel URL:', error);
