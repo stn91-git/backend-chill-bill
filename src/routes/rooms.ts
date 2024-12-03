@@ -210,7 +210,7 @@ router.get('/:roomId', async (req, res) => {
 });
 
 // Update the upload-receipt route
-router.post('/:roomId/upload-receipt', upload.single('receipt'), async (req, res) => {
+router.post('/:roomId/upload-receipt', upload.single('receipt'), async (req, res, next) => {
   try {
     const { roomId } = req.params;
     const file = req.file;
@@ -271,8 +271,7 @@ router.post('/:roomId/upload-receipt', upload.single('receipt'), async (req, res
 
     res.json(receiptData);
   } catch (error) {
-    console.error('Receipt processing error:', error);
-    res.status(500).json({ message: 'Failed to process receipt' });
+    next(error); // Pass error to error handling middleware
   }
 });
 
