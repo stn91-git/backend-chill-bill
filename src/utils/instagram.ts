@@ -1,7 +1,6 @@
 import puppeteer from 'puppeteer';
 import dotenv from 'dotenv';
 
-// Load environment variables
 dotenv.config();
 
 export async function openInstagram() {
@@ -13,49 +12,73 @@ export async function openInstagram() {
       throw new Error('Instagram credentials not found in environment variables');
     }
 
-    // Launch the browser
     const browser = await puppeteer.launch({
       headless: false,
       defaultViewport: { width: 1280, height: 800 }
     });
 
-    // Create a new page
     const page = await browser.newPage();
 
     // Navigate to Instagram
-    await page.goto('https://www.instagram.com', {
-      waitUntil: 'networkidle0',
-    });
+    await page.goto('https://www.instagram.com');
 
-    // Wait for the login form
-    await page.waitForSelector('._aa4b', { timeout: 5000 });
-
-    // Type username
+    // Wait for login form and login
+    await page.waitForSelector('input[name="username"]');
     await page.type('input[name="username"]', username);
-    
-    // Type password
     await page.type('input[type="password"]', password);
-
-    // Click login button
     await page.click('button[type="submit"]');
 
-    // Wait for navigation after login
-    await page.waitForNavigation({
-      waitUntil: 'networkidle0',
-    });
-
-    // Wait for the reels link to be visible and click it
+    // Wait for home page to load
     await page.waitForSelector('a[href="/reels/?next=%2F"]');
     await page.click('a[href="/reels/?next=%2F"]');
 
-    // Wait for reels page to load
-    await page.waitForNavigation({
-      waitUntil: 'networkidle0',
-    });
-
     console.log('Successfully navigated to reels section');
 
-    return { browser, page };
+    // Function to wait for proper reel URL
+    async function waitForReelUrl(page: puppeteer.Page): Promise<string> {
+      let currentUrl = '';
+      while (currentUrl.includes('accounts/onetap') || !currentUrl.includes('/reels/')) {
+        currentUrl = await page.url();
+        await new Promise(r => setTimeout(r, 1000));
+      }
+      return currentUrl;
+    }
+
+    // Function to download current reel
+    async function downloadReel() {
+      try {
+        // Wait for proper reel URL
+        const reelUrl = await waitForReelUrl(page);
+        
+        if (reelUrl.includes('/reels/')) {
+          const reelId = reelUrl.split('/reels/')[1].split('/?')[0];
+          console.log('Found Reel ID:', reelId);
+          console.log('Reel URL:', reelUrl);
+          
+          // Here you can add your download logic using the reelId
+          // For example: await downloadFromInstagram(reelUrl);
+        }
+
+        // Move to next reel
+        await page.keyboard.press('ArrowDown');
+        await new Promise(r => setTimeout(r, 2000));
+
+      } catch (error) {
+        console.error('Error getting reel URL:', error);
+      }
+    }
+
+    // Process first 5 reels
+    for (let i = 0; i < 5; i++) {
+      console.log(`Processing reel ${i + 1}`);
+      await downloadReel();
+      await new Promise(r => setTimeout(r, 2000)); // Small delay between reels
+    }
+
+    console.log('Finished processing reels');
+    await browser.close();
+
+    return { success: true };
   } catch (error) {
     console.error('Error:', error);
     throw error;

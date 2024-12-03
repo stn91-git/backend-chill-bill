@@ -27,17 +27,14 @@ router.post('/login', async (req, res) => {
 // Add this route to test Instagram automation
 router.get('/test-instagram', async (req, res) => {
   try {
-    const { browser, page } = await openInstagram();
-    
-    // Close the browser after 5 seconds (for testing)
-    // setTimeout(async () => {
-    //   await browser.close();
-    // }, 5000);
-
-    res.json({ message: 'Instagram opened successfully' });
+    const { success } = await openInstagram();
+    res.json({ 
+      message: 'Instagram automation completed successfully',
+      success
+    });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ message: 'Failed to open Instagram' });
+    res.status(500).json({ message: 'Failed to process Instagram reels' });
   }
 });
 
