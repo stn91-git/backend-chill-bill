@@ -1,5 +1,6 @@
 import puppeteer, { Page, Browser } from 'puppeteer';
 import dotenv from 'dotenv';
+import path from 'path';
 
 dotenv.config();
 
@@ -14,6 +15,15 @@ async function handleAds(page: Page) {
   }
 }
 
+// Replace all instances of page._client.send with the proper CDP session
+async function setupDownloadBehavior(page: Page, downloadPath: string) {
+  const client = await page.createCDPSession();
+  await client.send('Page.setDownloadBehavior', {
+    behavior: 'allow',
+    downloadPath: downloadPath
+  });
+}
+
 export async function openInstagram() {
   let browser: Browser | null = null;
   let instagramPage: Page | null = null;
@@ -26,12 +36,18 @@ export async function openInstagram() {
       throw new Error('Instagram credentials not found in environment variables');
     }
 
+    // Configure browser with download preferences
     browser = await puppeteer.launch({
       headless: false,
       defaultViewport: { width: 1280, height: 800 }
     });
 
-    instagramPage = await browser.newPage();
+    // Configure download behavior for all pages
+    const uploadPath = path.resolve(__dirname, '../../uploads');
+    const client = await browser.createIncognitoBrowserContext();
+    
+    instagramPage = await client.newPage();
+    await setupDownloadBehavior(instagramPage, uploadPath);
 
     // Navigate to Instagram
     await instagramPage.goto('https://www.instagram.com');
@@ -100,7 +116,10 @@ export async function openInstagram() {
           console.log('Found Reel ID:', reelId);
           console.log('Reel URL:', reelUrl);
           
-          const downloadPage = await browser.newPage();
+          const downloadPage = await client.newPage();
+          // Configure download behavior for this page
+          await setupDownloadBehavior(downloadPage, uploadPath);
+
           await downloadPage.goto('https://sssinstagram.com/reels-downloader');
           
           // Wait for input field
@@ -141,13 +160,30 @@ export async function openInstagram() {
           // Click the download button that appears after loading
           const downloadButton = await downloadPage.$('a.button.button--filled.button__download');
           if (downloadButton) {
-            await downloadButton.click();
-            
-            // Wait for the native download dialog
-            await new Promise(r => setTimeout(r, 2000));
-            
-            // Simulate pressing Enter to accept the download in the native dialog
-            await downloadPage.keyboard.press('Enter');
+            // Get the download URL
+            const downloadUrl = await downloadPage.$eval(
+              'a.button.button--filled.button__download',
+              (el) => el.getAttribute('href')
+            );
+
+            if (!downloadUrl) {
+              console.error('Download URL not found');
+              await downloadPage.close();
+              return false;
+            }
+
+            const downloadPromise = new Promise(resolve => {
+              downloadPage.on('download', async (download) => {
+               // await download.path();
+               console.log('Download started',download);
+                resolve(true);
+              });
+            });
+
+            await Promise.all([
+              downloadPromise,
+              downloadButton.click()
+            ]);
             
             // Wait for download to complete
             await new Promise(r => setTimeout(r, 5000));
@@ -155,13 +191,13 @@ export async function openInstagram() {
             // Close only the download tab
             await downloadPage.close();
             
-            console.log(`Successfully downloaded reel: ${reelId}`);
+            console.log(`Successfully downloaded reel: ${reelId} to uploads folder`);
 
             // Only move to next reel after successful download
             await instagramPage.keyboard.press('ArrowDown');
             await new Promise(r => setTimeout(r, 4000));
             
-            return true; // Indicate successful download
+            return true;
           } else {
             console.error('Download button not found');
             await downloadPage.close();
