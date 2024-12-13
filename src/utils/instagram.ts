@@ -27,6 +27,8 @@ async function setupDownloadBehavior(page: Page, downloadPath: string) {
 export async function openInstagram() {
   let browser: Browser | null = null;
   let instagramPage: Page | null = null;
+  // Track downloaded reels
+  const downloadedReels = new Set<string>();
 
   try {
     const username = process.env.INSTAGRAM_USERNAME;
@@ -66,7 +68,18 @@ export async function openInstagram() {
     await waitForReelsToLoad(instagramPage);
 
     console.log('Successfully navigated to reels section');
-
+    while (true) {
+      try {
+        const reelUrl = await waitForReelUrl(instagramPage)
+        console.log('Reel URL:', reelUrl);
+        // Wait 5 seconds before next reel
+        await downloadReel(reelUrl);
+        await new Promise(r => setTimeout(r, 5000));
+        await instagramPage.keyboard.press('ArrowDown');
+      } catch (error) {
+        console.error('Error processing reel:', error);
+      }}
+     
     // Function to wait for proper reel URL
     async function waitForReelUrl(page: Page): Promise<string> {
       let currentUrl = '';
@@ -105,16 +118,19 @@ export async function openInstagram() {
     }
 
     // Function to download current reel
-    async function downloadReel() {
+    async function downloadReel(reelUrl: string) {
       try {
         if (!browser || !instagramPage) return;
 
-        const reelUrl = await waitForReelUrl(instagramPage);
+        // Get current reel URL
+     //  const reelUrl = await waitForReelUrl(instagramPage);
         
         if (reelUrl.includes('/reels/')) {
           const reelId = reelUrl.split('/reels/')[1].split('/?')[0];
-          console.log('Found Reel ID:', reelId);
-          console.log('Reel URL:', reelUrl);
+          
+          // Skip if already downloaded
+
+          console.log('Processing Reel ID:', reelId);
           
           const downloadPage = await client.newPage();
           // Configure download behavior for this page
@@ -233,6 +249,9 @@ export async function openInstagram() {
               await instagramPage.keyboard.press('ArrowDown');
               await new Promise(r => setTimeout(r, 4000));
               
+              // After successful download, add to tracked reels
+              downloadedReels.add(reelId);
+              
               return true;
             } catch (error) {
               console.error('Error during download:', error);
@@ -251,21 +270,17 @@ export async function openInstagram() {
       }
     }
 
-    // Process reels with retry logic
-    for (let i = 0; i < 5; i++) {
-      console.log(`Processing reel ${i + 1}`);
-      try {
-        await downloadReel();
-        console.log(`Successfully processed reel ${i + 1}`);
-      } catch (error) {
-        console.error(`Error processing reel ${i + 1}:`, error);
-      }
-      // Wait before moving to next reel
-      await new Promise(r => setTimeout(r, 9000));
-      await instagramPage.keyboard.press('ArrowDown');
-    }
+    // Process 5 reels sequentially
+    // for (let i = 0; i < 5; i++) {
+    //   console.log(`Processing reel ${i + 1}`);
+    //   try {
+    //     await downloadReel();
+    //     console.log(`Successfully processed reel ${i + 1}`);
+    //   } catch (error) {
+    //     console.error(`Error processing reel ${i + 1}:`, error);
+    //   }
+    // }
 
-    console.log('Finished processing reels');
     return { success: true };
 
   } catch (error) {
