@@ -16,7 +16,8 @@
     "firebase-admin": "^11.11.0",
     "firestore": "^1.1.6",
     "multer": "^1.4.5-lts.1",
-    "puppeteer": "^21.11.0"
+    "puppeteer": "^21.11.0",
+    "ruhend-scraper": "^8.0.5"
   },
   "devDependencies": {
     "@types/cors": "^2.8.13",

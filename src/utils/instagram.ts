@@ -1,6 +1,8 @@
 import puppeteer, { Page, Browser } from 'puppeteer';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs/promises';
+const { igdl } = require('ruhend-scraper')
 
 dotenv.config();
 
@@ -24,7 +26,39 @@ async function setupDownloadBehavior(page: Page, downloadPath: string) {
   });
 }
 
+export async function downloadReel(reelUrl: string) {
+  let res = await igdl(reelUrl);
+  let data = await res.data;
+  for (let media of data) {
+    try {
+      // Create uploads directory if it doesn't exist
+      const uploadPath = path.resolve(__dirname, '../../uploads');
+      await fs.mkdir(uploadPath, { recursive: true });
+
+      // Download the file
+      const response = await fetch(media.url);
+      const buffer = await response.arrayBuffer();
+
+      // Generate unique filename using timestamp
+      const timestamp = new Date().getTime();
+      const filename = `reel_${timestamp}.mp4`;
+      const filePath = path.join(uploadPath, filename);
+
+      // Save the file
+      await fs.writeFile(filePath, Buffer.from(buffer));
+      console.log(`Downloaded reel to: ${filePath}`);
+
+      // Wait 2 seconds before next download
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } catch (error) {
+      console.error('Error downloading reel:', error);
+    }
+  }
+}
+
 export async function openInstagram() {
+
+
   let browser: Browser | null = null;
   let instagramPage: Page | null = null;
   // Track downloaded reels
@@ -45,11 +79,11 @@ export async function openInstagram() {
     });
 
     // Configure download behavior for all pages
-    const uploadPath = path.resolve(__dirname, '../../uploads');
+    // const uploadPath = path.resolve(__dirname, '../../uploads');
     const client = await browser.createIncognitoBrowserContext();
     
     instagramPage = await client.newPage();
-    await setupDownloadBehavior(instagramPage, uploadPath);
+    // await setupDownloadBehavior(instagramPage, uploadPath);
 
     // Navigate to Instagram
     await instagramPage.goto('https://www.instagram.com');
@@ -72,7 +106,7 @@ export async function openInstagram() {
       try {
         const reelUrl = await waitForReelUrl(instagramPage)
         console.log('Reel URL:', reelUrl);
-        // Wait 5 seconds before next reel
+        // // Wait 5 seconds before next reel
         await downloadReel(reelUrl);
         await new Promise(r => setTimeout(r, 5000));
         await instagramPage.keyboard.press('ArrowDown');
@@ -117,170 +151,6 @@ export async function openInstagram() {
       console.log('Reels feed loaded successfully');
     }
 
-    // Function to download current reel
-    async function downloadReel(reelUrl: string) {
-      try {
-        if (!browser || !instagramPage) return;
-
-        // Get current reel URL
-     //  const reelUrl = await waitForReelUrl(instagramPage);
-        
-        if (reelUrl.includes('/reels/')) {
-          const reelId = reelUrl.split('/reels/')[1].split('/?')[0];
-          
-          // Skip if already downloaded
-
-          console.log('Processing Reel ID:', reelId);
-          
-          const downloadPage = await client.newPage();
-          // Configure download behavior for this page
-          await setupDownloadBehavior(downloadPage, uploadPath);
-
-          await downloadPage.goto('https://sssinstagram.com/reels-downloader');
-          
-          // Wait for input field
-          const inputSelector = 'input.form__input';
-          await downloadPage.waitForSelector(inputSelector);
-          
-          // Clear the input field first
-          await downloadPage.evaluate((selector) => {
-            const input = document.querySelector(selector) as HTMLInputElement;
-            input.value = '';
-          }, inputSelector);
-          
-          // Click the input field and paste URL
-          await downloadPage.click(inputSelector);
-          await downloadPage.keyboard.type(reelUrl);
-          
-          // Close any new pages that might have opened
-          const allPages = await browser.pages();
-          for (const page of allPages) {
-            if (page !== instagramPage && page !== downloadPage) {
-              await page.close();
-            }
-          }
-
-          // Ensure URL is properly pasted before proceeding
-          const inputValue = await downloadPage.$eval(inputSelector, 
-            (el: HTMLInputElement) => el.value
-          );
-          
-          if (inputValue !== reelUrl) {
-            console.error('URL not properly pasted, retrying...');
-            await downloadPage.close();
-            return false;
-          }
-          
-          // Click the initial submit button
-          await downloadPage.click('button.form__submit');
-          
-          // Check for error message
-          try {
-            const errorSelector = 'div.error-message';
-            const errorMessage = await Promise.race([
-              downloadPage.waitForSelector(errorSelector, { timeout: 5000 }),
-              downloadPage.waitForSelector('a.button.button--filled.button__download', { timeout: 30000 })
-            ]);
-
-            // If error message appears, skip this reel
-            if (errorMessage && (await downloadPage.$(errorSelector))) {
-              console.log(`Error message found for reel ${reelId}, skipping...`);
-              await downloadPage.close();
-              // Move to next reel
-              await instagramPage.keyboard.press('ArrowDown');
-              await new Promise(r => setTimeout(r, 4000));
-              return false;
-            }
-          } catch (error) {
-            // Continue with download if no error message found
-          }
-          
-          // Wait for the reel to load and the download button to appear
-          try {
-            // First try the original selector
-            await downloadPage.waitForSelector('a.button.button--filled.button__download', 
-              { visible: true, timeout: 30000 }
-            );
-          } catch (error) {
-            // If not found, try alternative selector
-            await downloadPage.waitForSelector('.download-button', 
-              { visible: true, timeout: 30000 }
-            );
-          }
-          
-          // Handle any popup ads that might appear
-          await handleAds(downloadPage);
-          
-          // Try both possible selectors for the download button
-          const downloadButton = await downloadPage.$('a.button.button--filled.button__download') 
-            || await downloadPage.$('.download-button');
-
-          if (downloadButton) {
-            // Get the download URL
-            const downloadUrl = await downloadPage.$eval(
-              'a.button.button--filled.button__download',
-              (el) => el.getAttribute('href')
-            );
-
-            if (!downloadUrl) {
-              console.error('Download URL not found');
-              await downloadPage.close();
-              return false;
-            }
-
-            try {
-              // Set up download behavior to allow downloads
-              const client = await downloadPage.createCDPSession();
-              await client.send('Page.setDownloadBehavior', {
-                behavior: 'allow',
-                downloadPath: uploadPath,
-              });
-
-              // Click download and wait for completion
-              await downloadButton.click();
-              
-              // Wait for download to complete (5 seconds)
-              await new Promise(r => setTimeout(r, 5000));
-              
-              await downloadPage.close();
-              console.log(`Successfully downloaded reel: ${reelId} to uploads folder`);
-
-              // Move to next reel
-              await instagramPage.keyboard.press('ArrowDown');
-              await new Promise(r => setTimeout(r, 4000));
-              
-              // After successful download, add to tracked reels
-              downloadedReels.add(reelId);
-              
-              return true;
-            } catch (error) {
-              console.error('Error during download:', error);
-              await downloadPage.close();
-              return false;
-            }
-          } else {
-            console.error('Download button not found');
-            await downloadPage.close();
-            return false;
-          }
-        }
-      } catch (error) {
-        console.error('Error downloading reel:', error);
-        return false;
-      }
-    }
-
-    // Process 5 reels sequentially
-    // for (let i = 0; i < 5; i++) {
-    //   console.log(`Processing reel ${i + 1}`);
-    //   try {
-    //     await downloadReel();
-    //     console.log(`Successfully processed reel ${i + 1}`);
-    //   } catch (error) {
-    //     console.error(`Error processing reel ${i + 1}:`, error);
-    //   }
-    // }
-
     return { success: true };
 
   } catch (error) {
@@ -288,3 +158,4 @@ export async function openInstagram() {
     throw error;
   }
 } 
+

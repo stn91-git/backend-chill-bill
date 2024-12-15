@@ -1,6 +1,6 @@
 import express from 'express';
 import { Router } from 'express';
-import { openInstagram } from '../utils/instagram';
+import { downloadReel, openInstagram } from '../utils/instagram';
 
 const router: Router = express.Router();
 
@@ -31,6 +31,18 @@ router.get('/test-instagram', async (req, res) => {
     res.json({ 
       message: 'Instagram automation completed successfully',
       success
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ message: 'Failed to process Instagram reels' });
+  }
+});
+router.get('/download-instagram', async (req, res) => {
+  try {
+    await downloadReel('https://www.instagram.com/reels/DDkNwnzz0yb/?next=%2F');
+    res.json({ 
+      message: 'Instagram automation completed successfully',
+      success: true
     });
   } catch (error) {
     console.error('Error:', error);
