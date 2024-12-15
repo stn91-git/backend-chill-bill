@@ -24,19 +24,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Add this route to test Instagram automation
-router.get('/test-instagram', async (req, res) => {
-  try {
-    const { success } = await openInstagram();
-    res.json({ 
-      message: 'Instagram automation completed successfully',
-      success
-    });
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ message: 'Failed to process Instagram reels' });
-  }
-});
+
 router.get('/download-instagram', async (req, res) => {
   try {
     await downloadReel('https://www.instagram.com/reels/DDkNwnzz0yb/?next=%2F');

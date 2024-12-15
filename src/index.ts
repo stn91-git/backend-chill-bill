@@ -11,6 +11,7 @@ import cors from "cors";
 import authRoutes from "./routes/auth";
 import roomRoutes from "./routes/rooms";
 import receiptRoutes from "./routes/receipts";
+import instagramRoutes from "./routes/instagram-route";
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -23,7 +24,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/receipts", receiptRoutes);
-
+app.use("/api/instagram", instagramRoutes);
 
 
 // Error handling middleware (add this at the end)
