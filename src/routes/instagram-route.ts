@@ -1,6 +1,6 @@
 import express from 'express';
 import { Router } from 'express';
-import { openInstagram } from '../utils/instagram';
+import { loginToInstagram, openInstagram } from '../utils/instagram';
 import { postReelsToInstagram } from '../utils/instagram-poster';
 
 const router: Router = express.Router();
@@ -8,10 +8,10 @@ const router: Router = express.Router();
 // Add this route to test Instagram automation
 router.get('/download-instagram-reels', async (req, res) => {
     try {
-      const { success } = await openInstagram();
+       await loginToInstagram();
       res.json({ 
         message: 'Instagram automation completed successfully',
-        success
+        success: true
       });
     } catch (error) {
       console.error('Error:', error);
