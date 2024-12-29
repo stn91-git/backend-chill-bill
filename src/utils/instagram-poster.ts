@@ -5,10 +5,18 @@ import { IgApiClient } from 'instagram-private-api';
 import { readFile, existsSync } from 'fs';
 import { promisify } from 'util';
 import ffmpeg from 'fluent-ffmpeg';
-import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 
-// Set ffmpeg path
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+// Check if running on Replit
+const isReplit = process.env.REPL_ID !== undefined;
+
+if (!isReplit) {
+    // Only use ffmpeg-installer if not on Replit
+    const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
+    ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+} else {
+    // On Replit, ffmpeg is installed globally via replit.nix
+    ffmpeg.setFfmpegPath('ffmpeg');
+}
 
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
