@@ -4,10 +4,16 @@ import path from 'path';
 import { IgApiClient } from 'instagram-private-api';
 import { readFile, existsSync } from 'fs';
 import { promisify } from 'util';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+
+// Set ffmpeg path
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
+// const execAsync = promisify(exec);
 const readFileAsync = promisify(readFile);
 const ig = new IgApiClient();
 
@@ -53,17 +59,29 @@ async function login() {
     }
 }
 
+async function generateCoverImage(videoPath: string, coverPath: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        ffmpeg(videoPath)
+            .screenshots({
+                timestamps: [1],
+                filename: path.basename(coverPath),
+                folder: path.dirname(coverPath),
+                size: '1080x1920'
+            })
+            .on('end', () => resolve())
+            .on('error', (err) => reject(err));
+    });
+}
+
 export async function postReelsToInstagram() {
     try {
         if (!process.env.INSTAGRAM_USERNAME_DIET_PEPSI || !process.env.INSTAGRAM_PASSWORD_DIET_PEPSI) {
             throw new Error('Instagram credentials not found in environment variables');
         }
 
-        // Login first
         const loggedInUser = await login();
         console.log('Logged in as:', loggedInUser.username);
 
-        // Get video file
         const uploadsDir = path.resolve(__dirname, '../../uploads');
         const files = await fs.readdir(uploadsDir);
         const videoFiles = files.filter(file => file.endsWith('.mp4'));
@@ -73,24 +91,32 @@ export async function postReelsToInstagram() {
         }
 
         const videoPath = path.join(uploadsDir, videoFiles[0]);
-        const coverPath = path.join(__dirname, '../bryan-dijkhuizen-Prg_UfDpfeQ-unsplash.jpg');
-        
-        console.log('Publishing video:', videoPath);
-        console.log('Using cover image:', coverPath);
+        const coverPath = videoPath.replace('.mp4', '-cover.jpg');
 
-        // Publish video
-        const publishResult = await ig.publish.video({
-            video: await readFileAsync(videoPath),
-            coverImage: await readFileAsync(coverPath),
-            caption: "Your caption here..."
-        });
+        try {
+            // Generate cover image
+            await generateCoverImage(videoPath, coverPath);
+            console.log('Generated cover image:', coverPath);
 
-        console.log('Upload result:', publishResult);
-        
-        // Clean up after successful upload
-        await fs.unlink(videoPath);
-        
-        return publishResult;
+            const publishResult = await ig.publish.video({
+                video: await readFileAsync(videoPath),
+                coverImage: await readFileAsync(coverPath),
+                caption: "Your caption here..."
+            });
+
+            console.log('Upload result:', publishResult);
+            
+            // Clean up files
+            await fs.unlink(videoPath);
+            await fs.unlink(coverPath);
+            
+            return publishResult;
+        } catch (error) {
+            if (existsSync(coverPath)) {
+                await fs.unlink(coverPath).catch(console.error);
+            }
+            throw error;
+        }
     } catch (error) {
         console.error('Error in postReelsToInstagram:', error);
         throw error;
