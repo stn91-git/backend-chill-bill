@@ -4,7 +4,8 @@
   "scripts": {
     "start": "ts-node src/index.ts",
     "dev": "nodemon src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "postinstall": "which ffmpeg || echo 'Please install ffmpeg using your package manager'"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",

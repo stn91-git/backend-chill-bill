@@ -5,18 +5,39 @@ import { IgApiClient } from 'instagram-private-api';
 import { readFile, existsSync } from 'fs';
 import { promisify } from 'util';
 import ffmpeg from 'fluent-ffmpeg';
+import { exec } from 'child_process';
 
-// Check if running on Replit
-const isReplit = process.env.REPL_ID !== undefined;
+const execAsync = promisify(exec);
 
-if (!isReplit) {
-    // Only use ffmpeg-installer if not on Replit
-    const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
-    ffmpeg.setFfmpegPath(ffmpegInstaller.path);
-} else {
-    // On Replit, ffmpeg is installed globally via replit.nix
-    ffmpeg.setFfmpegPath('ffmpeg');
+// Check if ffmpeg is available in the system
+async function checkFFmpeg() {
+    try {
+        await execAsync('which ffmpeg');
+        return true;
+    } catch (error) {
+        return false;
+    }
 }
+
+// Initialize FFmpeg
+async function initializeFFmpeg() {
+    const isReplit = process.env.REPL_ID !== undefined;
+
+    if (isReplit) {
+        const hasFFmpeg = await checkFFmpeg();
+        if (!hasFFmpeg) {
+            console.error('FFmpeg not found in system');
+            throw new Error('FFmpeg not installed');
+        }
+        ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
+    } else {
+        const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
+        ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+    }
+}
+
+// Initialize FFmpeg when module loads
+initializeFFmpeg().catch(console.error);
 
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
