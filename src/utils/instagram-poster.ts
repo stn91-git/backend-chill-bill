@@ -101,7 +101,7 @@ export async function postReelsToInstagram() {
             const publishResult = await ig.publish.video({
                 video: await readFileAsync(videoPath),
                 coverImage: await readFileAsync(coverPath),
-                caption: "Your caption here..."
+                caption: "Introducing something close to my heart: a project that’s been in the works and is finally coming to life. 🌟 The name says it all—'btxch 16.' It’s more than just a phrase; it’s a vision, a journey, and a representation of creativity and ambition. 🚀Every detail has been thoughtfully designed to capture the essence of innovation, style, and edge. Whether it’s the futuristic vibe of the design or the meaning behind the name, it’s all about making a bold statement. This isn’t just a logo; it’s a movement, a mark of something bigger that’s about to unfold.I believe that every great idea deserves to be celebrated, and this is my way of sharing a piece of that vision with all of you. Your support means the world, and I can’t wait to see where this journey takes us. 💡Here’s to stepping into the future, embracing creativity, and building something truly unique. Drop your thoughts in the comments below—I’d love to hear what you think about 'btxch 16'! Let’s make it bigger and better together. 💯 #btxch16 #NewChapter #Innovation #CreativeVibes #StayTuned"
             });
 
             console.log('Upload result:', publishResult);
