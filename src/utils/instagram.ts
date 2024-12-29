@@ -4,8 +4,6 @@ import path from 'path';
 import fs from 'fs/promises';
 import { IgApiClient } from 'instagram-private-api';
 import { XMLParser } from 'fast-xml-parser';
-import { writeFile, readFile } from 'fs/promises';
-import { State } from 'instagram-private-api/dist/core/state';
 const { igdl } = require('ruhend-scraper')
 
 dotenv.config();
@@ -44,107 +42,6 @@ export async function downloadReel(videoUrl: string) {
   }
 }
 
-export async function openInstagram() {
-
-
-  let browser: Browser | null = null;
-  let instagramPage: Page | null = null;
-
-  try {
-    const username = process.env.INSTAGRAM_USERNAME;
-    const password = process.env.INSTAGRAM_PASSWORD;
-
-    if (!username || !password) {
-      throw new Error('Instagram credentials not found in environment variables');
-    }
-
-    // Configure browser with download preferences
-    browser = await puppeteer.launch({
-      headless: false,
-      defaultViewport: { width: 1280, height: 800 }
-    });
-
-    // Configure download behavior for all pages
-    // const uploadPath = path.resolve(__dirname, '../../uploads');
-    const client = await browser.createIncognitoBrowserContext();
-    
-    instagramPage = await client.newPage();
-    // await setupDownloadBehavior(instagramPage, uploadPath);
-
-    // Navigate to Instagram
-    await instagramPage.goto('https://www.instagram.com');
-
-    // Wait for login form and login
-    await instagramPage.waitForSelector('input[name="username"]');
-    await instagramPage.type('input[name="username"]', username);
-    await instagramPage.type('input[type="password"]', password);
-    await instagramPage.click('button[type="submit"]');
-
-    // Wait for home page to load
-    await instagramPage.waitForSelector('a[href="/reels/?next=%2F"]');
-    await instagramPage.click('a[href="/reels/?next=%2F"]');
-
-    // Wait for reels to load before proceeding
-    await waitForReelsToLoad(instagramPage);
-
-    console.log('Successfully navigated to reels section');
-    while (true) {
-      try {
-        const reelUrl = await waitForReelUrl(instagramPage)
-        console.log('Reel URL:', reelUrl);
-        // // Wait 5 seconds before next reel
-          await downloadReel(reelUrl);
-         await new Promise(r => setTimeout(r, 1000));
-        await instagramPage.keyboard.press('ArrowDown');
-      } catch (error) {
-        console.error('Error processing reel:', error);
-      }}
-     
-    // Function to wait for proper reel URL
-    async function waitForReelUrl(page: Page): Promise<string> {
-      let currentUrl = '';
-      let attempts = 0;
-      const maxAttempts = 30; // 30 seconds max wait time
-      const reelUrlPattern = /https:\/\/www\.instagram\.com\/reels\/[A-Za-z0-9_-]+\//;
-
-      while (attempts < maxAttempts) {
-        currentUrl = page.url();
-        
-        // Check if URL matches the reel pattern
-        if (reelUrlPattern.test(currentUrl)) {
-          console.log('Valid reel URL found:', currentUrl);
-          return currentUrl;
-        }
-
-        console.log('Waiting for reels to load...', currentUrl);
-        await new Promise(r => setTimeout(r, 1000));
-        attempts++;
-      }
-
-      throw new Error('Timeout waiting for valid reel URL');
-    }
-
-    // Function to check if reels are loaded
-    async function waitForReelsToLoad(page: Page) {
-      console.log('Waiting for reels feed to load...');
-      
-      // Wait for video elements to be present
-      await page.waitForSelector('video', { timeout: 30000 });
-      
-      // Additional wait to ensure content is properly loaded
-      await new Promise(r => setTimeout(r, 5000));
-      
-      console.log('Reels feed loaded successfully');
-    }
-
-    return { success: true };
-
-  } catch (error) {
-    console.error('Error:', error);
-    throw error;
-  }
-
-} 
 
 export async function postReelsToInstagram() {
   let browser: Browser | null = null;
@@ -560,7 +457,7 @@ interface Message {
 }
 
 export async function startMessagePolling(state: any, callback: (messages: Message[]) => void, interval = 5000) {
-  let lastCheckedTimestamp = Date.now();
+  let lastCheckedTimestamp = Date.now() / 1000;
   
   const checkNewMessages = async () => {
     try {
@@ -577,11 +474,13 @@ export async function startMessagePolling(state: any, callback: (messages: Messa
         }).items();
         
         messages.forEach(msg => {
-          if (Number(msg.timestamp) > lastCheckedTimestamp) {
+          const msgTimestamp = Number(msg.timestamp);
+          // Only add messages that have text content and are new
+          if (msgTimestamp > lastCheckedTimestamp && msg.text && msg.text.trim() !== '') {
             newMessages.push({
               id: msg.item_id,
-              text: msg.text || null,
-              timestamp: Number(msg.timestamp),
+              text: msg.text,
+              timestamp: msgTimestamp,
               userId: msg.user_id,
               threadId: thread.thread_id
             });
@@ -591,17 +490,14 @@ export async function startMessagePolling(state: any, callback: (messages: Messa
       
       if (newMessages.length > 0) {
         callback(newMessages);
+        lastCheckedTimestamp = Date.now() / 1000;
       }
       
-      lastCheckedTimestamp = Date.now();
     } catch (error) {
       console.error('Error polling messages:', error);
     }
   };
 
-  // Start polling
   const pollInterval = setInterval(checkNewMessages, interval);
-  
-  // Return function to stop polling
   return () => clearInterval(pollInterval);
 }

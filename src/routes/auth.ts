@@ -1,6 +1,6 @@
 import express from 'express';
 import { Router } from 'express';
-import { downloadReel, openInstagram } from '../utils/instagram';
+import { downloadReel } from '../utils/instagram';
 
 const router: Router = express.Router();
 

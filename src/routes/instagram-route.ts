@@ -1,24 +1,23 @@
 import express from 'express';
 import { Router } from 'express';
-import { openInstagram } from '../utils/instagram';
 import { postReelsToInstagram } from '../utils/instagram-poster';
 import { loginToInstagram, getConversations, sendMessageToThread, startMessagePolling } from '../utils/instagram';
 
 const router: Router = express.Router();
 
 // Add this route to test Instagram automation
-router.get('/download-instagram-reels', async (req, res) => {
-    try {
-       await openInstagram();
-      res.json({ 
-        message: 'Instagram automation completed successfully',
-        success: true
-      });
-    } catch (error) {
-      console.error('Error:', error);
-      res.status(500).json({ message: 'Failed to process Instagram reels' });
-    }
-  });
+// router.get('/download-instagram-reels', async (req, res) => {
+//     try {
+//        await openInstagram();
+//       res.json({ 
+//         message: 'Instagram automation completed successfully',
+//         success: true
+//       });
+//     } catch (error) {
+//       console.error('Error:', error);
+//       res.status(500).json({ message: 'Failed to process Instagram reels' });
+//     }
+//   });
 
 // Add new route to post reels
 router.get('/post-reels', async (req, res) => {
