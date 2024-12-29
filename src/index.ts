@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import { startInstagramCronJobs } from './utils/instagram-cron';
 
 // Load environment variables first
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -38,4 +39,5 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
+  startInstagramCronJobs(); // Start the cron jobs when server starts
 });
