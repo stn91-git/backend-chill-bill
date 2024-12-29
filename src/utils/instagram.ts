@@ -1,4 +1,3 @@
-import puppeteer, { Page, Browser } from 'puppeteer';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs/promises';
@@ -43,102 +42,7 @@ export async function downloadReel(videoUrl: string) {
 }
 
 
-export async function postReelsToInstagram() {
-  let browser: Browser | null = null;
-  let page: Page | null = null;
 
-  try {
-    const username = process.env.INSTAGRAM_USERNAME_DIET_PEPSI;
-    const password = process.env.INSTAGRAM_PASSWORD_DIET_PEPSI;
-
-    if (!username || !password) {
-      throw new Error('Instagram credentials not found in environment variables');
-    }
-
-    // Launch browser
-    browser = await puppeteer.launch({
-      headless: false,
-      defaultViewport: { width: 1280, height: 800 }
-    });
-
-    page = await browser.newPage();
-
-    // Navigate to Instagram
-    await page.goto('https://www.instagram.com');
-    await page.waitForSelector('input[name="username"]');
-
-    // Login
-    await page.type('input[name="username"]', username);
-    await page.type('input[type="password"]', password);
-    await page.click('button[type="submit"]');
-
-    // Wait for login to complete
-    await page.waitForNavigation();
-
-    // Get list of videos in uploads directory
-    const uploadsDir = path.resolve(__dirname, '../../uploads');
-    const files = await fs.readdir(uploadsDir);
-    const videoFiles = files.filter(file => file.endsWith('.mp4'));
-
-    for (const videoFile of videoFiles) {
-      try {
-        // Click create new post button
-        await page.waitForSelector('svg[aria-label="New post"]');
-        await page.click('svg[aria-label="New post"]');
-
-        // Wait for file input and upload video
-        const filePath = path.join(uploadsDir, videoFile);
-        const [fileChooser] = await Promise.all([
-          page.waitForFileChooser(),
-          page.click('button[type="button"]')
-        ]);
-        await fileChooser.accept([filePath]);
-
-        // Wait for upload to complete
-        await page.waitForSelector('button:has-text("Next")', { timeout: 60000 });
-        await page.click('button:has-text("Next")');
-
-        // Skip filters/editing
-        await page.waitForSelector('button:has-text("Next")', { timeout: 30000 });
-        await page.click('button:has-text("Next")');
-
-        // Add caption if needed
-        await page.waitForSelector('textarea[aria-label="Write a caption..."]');
-        await page.type('textarea[aria-label="Write a caption..."]', '🎥 #reels #instagram');
-
-        // Share the post
-        await page.waitForSelector('button:has-text("Share")');
-        await page.click('button:has-text("Share")');
-
-        // Wait for post to complete
-        await page.waitForSelector('div[role="dialog"] button:has-text("Close")');
-        await page.click('div[role="dialog"] button:has-text("Close")');
-
-        console.log(`Successfully posted video: ${videoFile}`);
-
-        // Optional: Move posted video to a 'posted' directory
-        const postedDir = path.join(uploadsDir, 'posted');
-        await fs.mkdir(postedDir, { recursive: true });
-        await fs.rename(filePath, path.join(postedDir, videoFile));
-
-        // Wait between posts
-        await new Promise(r => setTimeout(r, 10000));
-      } catch (error) {
-        console.error(`Error posting video ${videoFile}:`, error);
-      }
-    }
-
-    return { success: true };
-
-  } catch (error) {
-    console.error('Error in postReelsToInstagram:', error);
-    throw error;
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
-  }
-}
 
 async function downloadDashManifest(dashManifest: string) {
   try {
